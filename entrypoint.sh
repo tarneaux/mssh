@@ -11,23 +11,24 @@ fi
 
 for user in $(ls /keys); do
     if [ -d /home/"$user" ]; then
-        UID=$(stat -c "%u" /home/"$user")
-        GID=$(stat -c "%g" /home/"$user")
-        {
-            # Create the user with the correct GID and UID to match the permissions
-            # of their home directory
-            adduser --shell /bin/bash -D "$user" -g $GID -u $UID
+        WUID=$(stat -c "%u" /home/"$user")
+        WGID=$(stat -c "%g" /home/"$user")
+        # Create the user with the correct GID and UID to match the permissions
+        # of their home directory.
+        # 
+        # Unlock user to allow SSH login. This effectively allows anybody who could
+        # login with a password to bypass the password prompt, but it should be fine
+        # on Alpine since no binaries have their SUID and/or SGID bits set.
+        adduser --shell /bin/bash -D "$user" -g $WGID -u $WUID \
+            && passwd -u "$user" || true
+    fi
+done
 
-            # Unlock user to allow SSH login. This effectively allows anybody who could
-            # login with a password to bypass the password prompt, but it should be fine
-            # on Alpine since no binaries have their SUID and/or SGID bits set.
-            passwd -u "$user"
-        } || true # May fail if we're just restarting
-    else
+for user in $(ls /keys); do
+    if [ ! -d /home/"$user" ]; then
         adduser --shell /bin/bash -D "$user"
         passwd -u "$user"
     fi
-
     chmod 700 /home/"$user"
     
     mkdir -p /home/"$user"/.ssh
