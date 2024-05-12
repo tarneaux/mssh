@@ -10,12 +10,25 @@ fi
 [ -f "/hostkeys/ssh_host_ed25519_key" ] || ssh-keygen -q -N "" -t ed25519 -f /hostkeys/ssh_host_ed25519_key
 
 for user in $(ls /keys); do
-    adduser --shell /bin/bash -D "$user" && chmod 700 /home/"$user" || true
+    if [ -d /home/"$user" ]; then
+        UID=$(stat -c "%u" /home/"$user")
+        GID=$(stat -c "%g" /home/"$user")
+        {
+            # Create the user with the correct GID and UID to match the permissions
+            # of their home directory
+            adduser --shell /bin/bash -D "$user" -g $GID -u $UID
 
-    # Unlock user to allow SSH login. This effectively allows anybody who could
-    # login with a password to bypass the password prompt, but it should be fine
-    # on Alpine since no binaries have their SUID and/or SGID bits set.
-    passwd -u "$user" || true
+            # Unlock user to allow SSH login. This effectively allows anybody who could
+            # login with a password to bypass the password prompt, but it should be fine
+            # on Alpine since no binaries have their SUID and/or SGID bits set.
+            passwd -u "$user"
+        } || true # May fail if we're just restarting
+    else
+        adduser --shell /bin/bash -D "$user"
+        passwd -u "$user"
+    fi
+
+    chmod 700 /home/"$user"
     
     mkdir -p /home/"$user"/.ssh
     cp -f /keys/"$user" /home/"$user"/.ssh/authorized_keys
