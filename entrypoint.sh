@@ -10,7 +10,7 @@ fi
 [ -f "/hostkeys/ssh_host_ed25519_key" ] || ssh-keygen -q -N "" -t ed25519 -f /hostkeys/ssh_host_ed25519_key
 
 for user in $(ls /keys); do
-    adduser --shell /bin/bash -D "$user" || true
+    adduser --shell /bin/bash -D "$user" && chmod 700 /home/"$user" || true
 
     # Unlock user to allow SSH login. This effectively allows anybody who could
     # login with a password to bypass the password prompt, but it should be fine
